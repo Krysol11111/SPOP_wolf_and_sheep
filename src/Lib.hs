@@ -4,13 +4,32 @@ module Lib
 	
 import System.Exit
 	
-data Direction = SW | SE deriving (Enum, Eq)
+data Direction = SE | SW deriving (Enum, Eq, Read)
+
+data Vector = Vector Int Int							--something for converting direction to vector move
+xVector (Vector x _) = x
+yVector (Vector _ y) = y
+
+dirToVector :: Direction -> Vector
+dirToVector dir = case dir of 
+	SE -> Vector 1 1
+	SW -> Vector 1 (-1)
+	
+moveWolf :: State -> Vector -> State
+moveWolf (State (Wolf x y) sheep) (Vector dx dy) = State (Wolf (x+dx) (y+dy)) sheep
+
+--TODO moveSheep :: State -> Int -> Vector -> State
+
+
 data Wolf = Wolf Int Int
 data Sheep = Sheep Int Int
 data State = State Wolf [Sheep]							--TODO state data type
 
 initstate :: State										--TODO initial state
 initstate = State (Wolf 2 1) ([])
+
+sheepcount :: Int
+sheepcount = 4
 
 initgame :: IO ()										
 initgame = game initstate
@@ -34,7 +53,7 @@ parse :: String -> Bool 								--TODO check syntax
 parse a = (a == "Kappa")
 
 validate :: String -> Bool								--TODO check semantics
-validate command = (getsheepnumber command) == 1 && (getsheepdirection command) == SE
+validate command = elem (getsheepnumber command) [1..4] && (getsheepdirection command) == SE
 
 game :: State -> IO()									--TODO main loop (... or recursion?)
 game (State (Wolf _ y) _) | y == 0 = do 
