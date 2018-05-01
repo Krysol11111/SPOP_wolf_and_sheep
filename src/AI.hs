@@ -1,5 +1,5 @@
 module AI
-    (
+    ( wolfMove,
 	testing
     ) where
 	
@@ -10,10 +10,13 @@ data Sheep = Sheep Int Int deriving (Eq)
 data State = State Wolf [Sheep]
 data Vector = Vector Int Int
 
-possibleX = [1..8]
-possibleY = [1..8]
+possibleX = [0..7]
+possibleY = [0..7]
 possibleWolfMoves = [(Vector 1 1), (Vector 1 (-1)), (Vector (-1) (-1)), (Vector (-1) 1)]
 possibleSheepMoves = [(Vector 1 1), (Vector (-1) 1)]
+sheepids = [0..3]
+minmaxDepth = 5 --zmniejszane tylko na ruchach wilka
+winningValue = 10000
 
 xSheep (Sheep x y) = x
 ySheep (Sheep x y) = y
@@ -51,9 +54,35 @@ canWolfMove (State (Wolf wolfX wolfY) sheep) (Vector dx dy) =
 	 
 --TODO operacje na Wolf i Sheep wspólne
 
+wolfMove :: State -> State
+wolfMove state =
+	moveWolf state (bestWolfMove moves) where
+	 moves = [minmaxWolfMove minmaxDepth state vector | vector <- possibleWolfMoves, canWolfMove state vector]
+
+bestWolfMove :: [(Vector, Int)] -> Vector
+bestWolfMove list =
+	vector where
+	 (vector,_) = getBestMove (Vector (-100) (-100),(-1)) list
+
+getBestMove :: (Vector,Int) -> [(Vector,Int)] -> (Vector,Int)
+getBestMove pair [] = pair
+getBestMove (best,bestValue) ((contender,contenderValue):rest) = if (bestValue >= contenderValue) then getBestMove (best,bestValue) rest else getBestMove (contender,contenderValue) rest
+
+
+
+minmaxWolfMove :: Int -> State -> Vector -> (Vector,Int)
+minmaxWolfMove 0 state vector = (vector, (heuristics (moveWolf state vector)))
+minmaxWolfMove i (State (Wolf x y) _) (Vector dx dy) | (y+dy) == 0 = winningValue
+minmaxWolfMove i state vector = 
+	(vector, (maximum moves)) where
+	 moves = [minmaxSheepMove (i-1) (moveWolf state vector) sheepid sheepVector | sheepid <- sheepids, sheepVector <- possibleSheepMoves, canSheepMove (moveWolf state vector) sheepid sheepVector]
 	
+minmaxSheepMove :: Int -> State -> Int -> Vector -> Int
+minmaxSheepMove _ _ _ _ = 0
+
+
 testState :: State										
-testState = State (Wolf 2 1) [(Sheep 1 1), (Sheep 1 2), (Sheep 1 3), (Sheep 1 4)]
+testState = State (Wolf 1 0) [(Sheep 0 0), (Sheep 0 1), (Sheep 0 2), (Sheep 0 3)]
 
 testing :: IO()
 testing = do
