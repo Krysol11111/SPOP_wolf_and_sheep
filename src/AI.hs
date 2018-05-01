@@ -9,6 +9,7 @@ data Wolf = Wolf Int Int
 data Sheep = Sheep Int Int deriving (Eq)
 data State = State Wolf [Sheep]
 data Vector = Vector Int Int
+data Outcome = SheepWon | WolfWon | Undetermined
 
 possibleX = [0..7]
 possibleY = [0..7]
@@ -16,6 +17,7 @@ possibleWolfMoves = [(Vector 1 1), (Vector 1 (-1)), (Vector (-1) (-1)), (Vector 
 possibleSheepMoves = [(Vector 1 1), (Vector (-1) 1)]
 sheepids = [0..3]
 minmaxDepth = 5 --zmniejszane tylko na ruchach wilka
+winningValue :: Int
 winningValue = 10000
 
 xSheep (Sheep x y) = x
@@ -54,6 +56,27 @@ canWolfMove (State (Wolf wolfX wolfY) sheep) (Vector dx dy) =
 	 
 --TODO operacje na Wolf i Sheep wspólne
 
+
+wolfMoveState :: State -> (Outcome,State)
+wolfMoveState state = 
+	if (possibleMoves == [])
+	then
+	 (SheepWon,state)
+	else
+	 if (didWolfWon state possibleMoves)
+	 then
+	  (WolfWon,state)
+	 else
+	  (Undetermined,wolfMove state)
+	where
+	 possibleMoves = [vector | vector <- possibleWolfMoves, canWolfMove state vector]
+	 
+didWolfWon :: State -> [Vector] -> Bool
+didWolfWon (State (Wolf _ y) _) vectors = or( [ y + (yVector vector) | vector <- vectors] )
+	 
+	 
+	 
+
 wolfMove :: State -> State
 wolfMove state =
 	moveWolf state (bestWolfMove moves) where
@@ -72,13 +95,24 @@ getBestMove (best,bestValue) ((contender,contenderValue):rest) = if (bestValue >
 
 minmaxWolfMove :: Int -> State -> Vector -> (Vector,Int)
 minmaxWolfMove 0 state vector = (vector, (heuristics (moveWolf state vector)))
-minmaxWolfMove i (State (Wolf x y) _) (Vector dx dy) | (y+dy) == 0 = winningValue
-minmaxWolfMove i state vector = 
+minmaxWolfMove i (State (Wolf x y) _) (Vector dx dy) | (y+dy) == 0 = (Vector dx dy,winningValue)
+minmaxWolfMove i state vector =
 	(vector, (maximum moves)) where
 	 moves = [minmaxSheepMove (i-1) (moveWolf state vector) sheepid sheepVector | sheepid <- sheepids, sheepVector <- possibleSheepMoves, canSheepMove (moveWolf state vector) sheepid sheepVector]
 	
 minmaxSheepMove :: Int -> State -> Int -> Vector -> Int
-minmaxSheepMove _ _ _ _ = 0
+minmaxSheepMove i state sheepid vector =
+	if (wolfMoves == []) then
+	 0
+	else
+	 getMinimumScore wolfMoves winningValue 
+	where
+	 newState = moveSheep state sheepid vector
+	 wolfMoves = [minmaxWolfMove i newState wolfVector | wolfVector <- possibleWolfMoves, canWolfMove newState wolfVector]
+	 
+getMinimumScore :: [(Vector, Int)] -> Int -> Int
+getMinimumScore [] worstScore = worstScore
+getMinimumScore ((_,score):rest) worstScore = if (score < worstScore) then getMinimumScore rest score else getMinimumScore rest worstScore
 
 
 testState :: State										
