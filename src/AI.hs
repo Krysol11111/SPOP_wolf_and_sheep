@@ -59,7 +59,7 @@ canWolfMove (State (Wolf wolfX wolfY) sheep) (Vector dx dy) =
 
 wolfMoveState :: State -> (Outcome,State)
 wolfMoveState state = 
-	if (possibleMoves == [])
+	if (null possibleMoves)
 	then
 	 (SheepWon,state)
 	else
@@ -72,7 +72,7 @@ wolfMoveState state =
 	 possibleMoves = [vector | vector <- possibleWolfMoves, canWolfMove state vector]
 	 
 didWolfWon :: State -> [Vector] -> Bool
-didWolfWon (State (Wolf _ y) _) vectors = or( [ y + (yVector vector) | vector <- vectors] )
+didWolfWon (State (Wolf _ y) _) vectors = or( [ y + (yVector vector) == 0 | vector <- vectors] )
 	 
 	 
 	 
@@ -94,7 +94,7 @@ getBestMove (best,bestValue) ((contender,contenderValue):rest) = if (bestValue >
 
 
 minmaxWolfMove :: Int -> State -> Vector -> (Vector,Int)
-minmaxWolfMove 0 state vector = (vector, (heuristics (moveWolf state vector)))
+minmaxWolfMove 0 state vector = (vector, (evalBoard (moveWolf state vector)))
 minmaxWolfMove i (State (Wolf x y) _) (Vector dx dy) | (y+dy) == 0 = (Vector dx dy,winningValue)
 minmaxWolfMove i state vector =
 	(vector, (maximum moves)) where
@@ -102,7 +102,7 @@ minmaxWolfMove i state vector =
 	
 minmaxSheepMove :: Int -> State -> Int -> Vector -> Int
 minmaxSheepMove i state sheepid vector =
-	if (wolfMoves == []) then
+	if (null wolfMoves) then
 	 0
 	else
 	 getMinimumScore wolfMoves winningValue 
@@ -113,6 +113,27 @@ minmaxSheepMove i state sheepid vector =
 getMinimumScore :: [(Vector, Int)] -> Int -> Int
 getMinimumScore [] worstScore = worstScore
 getMinimumScore ((_,score):rest) worstScore = if (score < worstScore) then getMinimumScore rest score else getMinimumScore rest worstScore
+
+evalBoard :: State -> Int
+evalBoard (State (Wolf x y) sheep) =
+	heightScore + sheepDensityScore where
+	 heightScore = 7-y
+	 sheepDensityScore = evalSheepDensity sheep
+
+
+evalSheepDensity :: [Sheep] -> Int
+evalSheepDensity sheep = 
+	6-(maxX-minX)+(maxY-minY) where
+	 (minX, maxX, minY, maxY) = getExtremeValues sheep (10,  (-1),  10,  (-1))
+	 
+getExtremeValues :: [Sheep] -> (Int,Int,Int,Int) -> (Int,Int,Int,Int)
+getExtremeValues [] extremes = extremes
+getExtremeValues ((Sheep x y):rest) (minX,maxX,minY,maxY) = 
+	getExtremeValues rest (newMinX, newMaxX, newMinY, newMaxY) where
+	 newMinX = min x minX
+	 newMaxX = max x maxX
+	 newMinY = min y minY
+	 newMaxY = max y maxY
 
 
 testState :: State										
