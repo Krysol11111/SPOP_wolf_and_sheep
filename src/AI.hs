@@ -1,15 +1,10 @@
 module AI
-    ( wolfMove,
+    ( wolfMove,moveSheep,
 	testing
     ) where
 	
 import System.Exit
-
-data Wolf = Wolf Int Int
-data Sheep = Sheep Int Int deriving (Eq)
-data State = State Wolf [Sheep]
-data Vector = Vector Int Int
-data Outcome = SheepWon | WolfWon | Undetermined
+import Data
 
 possibleX = [0..7]
 possibleY = [0..7]
