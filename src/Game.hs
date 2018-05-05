@@ -1,4 +1,4 @@
-module Game
+module Game (initGame)
 where
 
 import System.IO
