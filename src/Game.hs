@@ -11,7 +11,7 @@ import AI
 Default board setting
 -}
 initGame::IO ()
-initGame = game (State (Wolf 6 3) [(Sheep 0 1),(Sheep 0 3),(Sheep 0 5),(Sheep 0 7)])
+initGame = game (State (Wolf 3 6) [(Sheep 1 0),(Sheep 3 0),(Sheep 5 0),(Sheep 7 0)])
 
 {-
 Game main loop
@@ -62,19 +62,19 @@ parseSheepMovement state = do
                             else if (elem sheepId [0..3]) 
                             then 
                                 case direction of
-                                      "L":_ -> game (wolfMove (moveSheep state sheepId (Vector 1 (-1))))
+                                      "L":_ -> game (wolfMove (moveSheep state sheepId (Vector (-1) 1)))
                                       "P":_ -> game (wolfMove (moveSheep state sheepId (Vector 1 1)))
                                       _   -> game state 
                             else do 
                                   putStrLn "Niepoprawna komenda"
                                   game state
-
+{-
 parseDirection::[String]->Vector
 parseDirection [] = (Vector 0 0) 
 parseDirection (x:xs) | x == "L" = (Vector (-1) 1)
                       | x == "R" = (Vector 1 1)
                       | otherwise = parseDirection xs
-  
+-}  
 writeStateToFile::State->IO()
 writeStateToFile state = do
                           putStrLn "Podaj nazwe pliku:"
