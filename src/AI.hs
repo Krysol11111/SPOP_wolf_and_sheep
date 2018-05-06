@@ -1,5 +1,5 @@
 module AI
-    ( wolfMove,moveSheep,
+    ( wolfMoveState,moveSheep,canSheepMove,
 	testing
     ) where
 	

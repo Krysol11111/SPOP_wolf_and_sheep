@@ -62,19 +62,24 @@ parseSheepMovement state = do
                             else if (elem sheepId [0..3]) 
                             then 
                                 case direction of
-                                      "L":_ -> game (wolfMove (moveSheep state sheepId (Vector (-1) 1)))
-                                      "P":_ -> game (wolfMove (moveSheep state sheepId (Vector 1 1)))
-                                      _   -> game state 
+                                      "L":_ -> if canSheepMove state sheepId (Vector (-1) 1) 
+                                               then do parseOutcome (wolfMoveState (moveSheep state sheepId (Vector (-1) 1)))
+                                               else do putStrLn "Zajete pole"; game state
+                                      "P":_ -> if canSheepMove state sheepId (Vector 1 1)
+                                               then do parseOutcome (wolfMoveState (moveSheep state sheepId (Vector 1 1))) 
+                                               else do putStrLn "Zajete pole"; game state
+                                      _     -> do putStrLn "Niepoprawny kierunek"
+                                                  game state 
                             else do 
                                   putStrLn "Niepoprawna komenda"
                                   game state
-{-
-parseDirection::[String]->Vector
-parseDirection [] = (Vector 0 0) 
-parseDirection (x:xs) | x == "L" = (Vector (-1) 1)
-                      | x == "R" = (Vector 1 1)
-                      | otherwise = parseDirection xs
--}  
+
+parseOutcome::(Outcome,State)->IO ()
+parseOutcome (outcome, state) = case outcome of
+                                  SheepWon -> do putStrLn "Sheep won"
+                                  WolfWon -> do putStrLn "Wolf won"
+                                  _ -> do game state
+
 writeStateToFile::State->IO()
 writeStateToFile state = do
                           putStrLn "Podaj nazwe pliku:"
