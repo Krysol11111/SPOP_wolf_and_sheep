@@ -8,7 +8,7 @@ import Data
 
 possibleX = [0..7]
 possibleY = [0..7]
-possibleWolfMoves = [(Vector 1 1), (Vector 1 (-1)), (Vector (-1) (-1)), (Vector (-1) 1)]
+possibleWolfMoves = [(Vector 1 (-1)), (Vector (-1) (-1)), (Vector 1 1), (Vector (-1) 1)]
 possibleSheepMoves = [(Vector 1 1), (Vector (-1) 1)]
 sheepids = [0..3]
 minmaxDepth = 5 --zmniejszane tylko na ruchach wilka
@@ -97,7 +97,10 @@ minmaxWolfMove :: Int -> State -> Vector -> (Vector,Int)
 minmaxWolfMove 0 state vector = (vector, (evalBoard (moveWolf state vector)))
 minmaxWolfMove i (State (Wolf x y) _) (Vector dx dy) | (y+dy) == 0 = (Vector dx dy,winningValue)
 minmaxWolfMove i state vector =
-	(vector, (minimum moves)) where
+	if (null moves) 
+	 then (vector, 0)
+	 else (vector, (minimum  moves))
+	 where
 	 moves = [minmaxSheepMove (i-1) (moveWolf state vector) sheepid sheepVector | sheepid <- sheepids, sheepVector <- possibleSheepMoves, canSheepMove (moveWolf state vector) sheepid sheepVector]
 	
 minmaxSheepMove :: Int -> State -> Int -> Vector -> Int
@@ -116,7 +119,7 @@ getMinimumScore ((_,score):rest) worstScore = if (score < worstScore) then getMi
 
 evalBoard :: State -> Int
 evalBoard (State (Wolf x y) sheep) =
-	heightScore + sheepDensityScore where
+	heightScore {-+ sheepDensityScore-} where
 	 heightScore = 7-y
 	 sheepDensityScore = evalSheepDensity sheep
 
