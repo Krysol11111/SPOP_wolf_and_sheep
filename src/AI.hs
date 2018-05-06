@@ -81,6 +81,11 @@ bestWolfMove :: [(Vector, Int)] -> Vector
 bestWolfMove list =
 	vector where
 	 (vector,_) = getBestMove (Vector (-100) (-100),(-1)) list
+	 
+bestWolfMoveValue :: [(Vector, Int)] -> Int
+bestWolfMoveValue list =
+	value where
+	 (_,value) = getBestMove (Vector (-100) (-100),(-1)) list
 
 getBestMove :: (Vector,Int) -> [(Vector,Int)] -> (Vector,Int)
 getBestMove pair [] = pair
@@ -92,7 +97,7 @@ minmaxWolfMove :: Int -> State -> Vector -> (Vector,Int)
 minmaxWolfMove 0 state vector = (vector, (evalBoard (moveWolf state vector)))
 minmaxWolfMove i (State (Wolf x y) _) (Vector dx dy) | (y+dy) == 0 = (Vector dx dy,winningValue)
 minmaxWolfMove i state vector =
-	(vector, (maximum moves)) where
+	(vector, (minimum moves)) where
 	 moves = [minmaxSheepMove (i-1) (moveWolf state vector) sheepid sheepVector | sheepid <- sheepids, sheepVector <- possibleSheepMoves, canSheepMove (moveWolf state vector) sheepid sheepVector]
 	
 minmaxSheepMove :: Int -> State -> Int -> Vector -> Int
@@ -100,7 +105,7 @@ minmaxSheepMove i state sheepid vector =
 	if (null wolfMoves) then
 	 0
 	else
-	 getMinimumScore wolfMoves winningValue 
+	 bestWolfMoveValue wolfMoves
 	where
 	 newState = moveSheep state sheepid vector
 	 wolfMoves = [minmaxWolfMove i newState wolfVector | wolfVector <- possibleWolfMoves, canWolfMove newState wolfVector]
