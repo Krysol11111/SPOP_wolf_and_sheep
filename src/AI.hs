@@ -1,32 +1,24 @@
 module AI
-    ( wolfMoveState,moveSheep,canSheepMove,
-	testing
+    ( wolfMoveState,moveSheep,canSheepMove
     ) where
 	
 import System.Exit
 import Data
 
-possibleX = [0..7]
-possibleY = [0..7]
-possibleWolfMoves = [(Vector 1 (-1)), (Vector (-1) (-1)), (Vector 1 1), (Vector (-1) 1)]
-possibleSheepMoves = [(Vector 1 1), (Vector (-1) 1)]
+possibleX = [0..7] -- wymiar x planszy
+possibleY = [0..7] -- wymiar y planszy
+possibleWolfMoves = [(Vector 1 (-1)), (Vector (-1) (-1)), (Vector 1 1), (Vector (-1) 1)] -- możliwe ruchy wilka
+possibleSheepMoves = [(Vector 1 1), (Vector (-1) 1)] -- możliwe ruchy owcy
 sheepids = [0..3]
 minmaxDepth = 5 --zmniejszane tylko na ruchach wilka
 winningValue :: Int
 winningValue = 10000
 
-xSheep (Sheep x y) = x
-ySheep (Sheep x y) = y
-
-xWolf (Wolf x y) = x
-yWolf (Wolf x y) = y
-	
-xVector (Vector x _) = x
-yVector (Vector _ y) = y
-	
+-- poruszenie wilka
 moveWolf :: State -> Vector -> State
 moveWolf (State (Wolf x y) sheep) (Vector dx dy) = State (Wolf (x+dx) (y+dy)) sheep
 
+-- poruszenie owcy
 moveSheep :: State -> Int -> Vector -> State
 moveSheep (State wolf sheep) index vector = (State wolf (modifySheep sheep index vector))
 
@@ -34,24 +26,24 @@ modifySheep :: [Sheep] -> Int -> Vector -> [Sheep]
 modifySheep ((Sheep x y):rest) 0 (Vector dx dy) = ((Sheep (x+dx) (y+dy)):rest)
 modifySheep (sheep:rest) index vector = (sheep:(modifySheep rest (index-1) vector))
 
+-- sprawdzenie możliwości wybraną owcą w podanym kierunku
 canSheepMove :: State -> Int -> Vector -> Bool
 canSheepMove (State (Wolf wolfX wolfY) sheep) index vector = 
 	and ( inBoard : (wolfNotColliding : sheepNotColliding)) where
-	 newSheep = (Sheep ((xSheep (sheep!!index)) + (xVector vector)) ((ySheep (sheep!!index)) + (yVector vector)))
-	 inBoard = ((elem (xSheep newSheep) possibleX) && (elem (ySheep newSheep) possibleY)) --Bool
-	 wolfNotColliding = (not((wolfX == (xSheep newSheep)) && (wolfY ==(ySheep newSheep)))) --Bool
+	 newSheep = (Sheep ((getX (sheep!!index)) + (getX vector)) ((getY (sheep!!index)) + (getY vector)))
+	 inBoard = ((elem (getX newSheep) possibleX) && (elem (getY newSheep) possibleY)) --Bool
+	 wolfNotColliding = (not((wolfX == (getX newSheep)) && (wolfY ==(getY newSheep)))) --Bool
 	 sheepNotColliding = [x /= newSheep | x <- sheep] --[Bool]
-	 
+
+-- sprawdzenie możliwości poruszenia wilka w wybranym kierunku
 canWolfMove :: State -> Vector -> Bool
 canWolfMove (State (Wolf wolfX wolfY) sheep) (Vector dx dy) =
 	and ( inBoard : sheepNotColliding) where
 	 newWolf = Wolf (wolfX + dx) (wolfY + dy)
-	 inBoard = ((elem (xWolf newWolf) possibleX) && (elem (yWolf newWolf) possibleY)) --Bool
-	 sheepNotColliding = [((xWolf newWolf) /= (xSheep x)) || ((yWolf newWolf) /= (ySheep x)) | x <- sheep] --[Bool]
+	 inBoard = ((elem (getX newWolf) possibleX) && (elem (getY newWolf) possibleY)) --Bool
+	 sheepNotColliding = [((getX newWolf) /= (getX x)) || ((getY newWolf) /= (getY x)) | x <- sheep] --[Bool]
 	 
---TODO operacje na Wolf i Sheep wspólne
-
-
+-- uruchomienie algorytmu wyboru ruchu wilka
 wolfMoveState :: State -> (Outcome,State)
 wolfMoveState state = 
 	if (null possibleMoves)
@@ -65,33 +57,33 @@ wolfMoveState state =
 	  (Undetermined,wolfMove state)
 	where
 	 possibleMoves = [vector | vector <- possibleWolfMoves, canWolfMove state vector]
-	 
-didWolfWon :: State -> [Vector] -> Bool
-didWolfWon (State (Wolf _ y) _) vectors = or( [ y + (yVector vector) == 0 | vector <- vectors] )
-	 
-	 
-	 
 
+-- sprawdzenie warunku zwycięstwa wilka
+didWolfWon :: State -> [Vector] -> Bool
+didWolfWon (State (Wolf _ y) _) vectors = or( [ y + (getY vector) == 0 | vector <- vectors] )
+	 
+-- inicjacja ruchu wilka w algorytmie
 wolfMove :: State -> State
 wolfMove state =
 	moveWolf state (bestWolfMove moves) where
 	 moves = [minmaxWolfMove minmaxDepth state vector | vector <- possibleWolfMoves, canWolfMove state vector]
 
+-- wybranie aktualnie najlepszego ruchu dla wilka
 bestWolfMove :: [(Vector, Int)] -> Vector
 bestWolfMove list =
 	vector where
 	 (vector,_) = getBestMove (Vector (-100) (-100),(-1)) list
-	 
+
+-- wybranie najwyższego wyniku z możliwych ruchów
 bestWolfMoveValue :: [(Vector, Int)] -> Int
 bestWolfMoveValue list =
 	value where
 	 (_,value) = getBestMove (Vector (-100) (-100),(-1)) list
 
+-- wybranie najlepszego ruchu z wartością
 getBestMove :: (Vector,Int) -> [(Vector,Int)] -> (Vector,Int)
 getBestMove pair [] = pair
 getBestMove (best,bestValue) ((contender,contenderValue):rest) = if (bestValue >= contenderValue) then getBestMove (best,bestValue) rest else getBestMove (contender,contenderValue) rest
-
-
 
 minmaxWolfMove :: Int -> State -> Vector -> (Vector,Int)
 minmaxWolfMove 0 state vector = (vector, (evalBoard (moveWolf state vector)))
@@ -112,17 +104,14 @@ minmaxSheepMove i state sheepid vector =
 	where
 	 newState = moveSheep state sheepid vector
 	 wolfMoves = [minmaxWolfMove i newState wolfVector | wolfVector <- possibleWolfMoves, canWolfMove newState wolfVector]
-	 
-getMinimumScore :: [(Vector, Int)] -> Int -> Int
-getMinimumScore [] worstScore = worstScore
-getMinimumScore ((_,score):rest) worstScore = if (score < worstScore) then getMinimumScore rest score else getMinimumScore rest worstScore
 
+-- heurystyka oceniająca wartość danego układu planszy dla wilka
 evalBoard :: State -> Int
 evalBoard (State (Wolf x y) sheep) =
-	heightScore {-+ sheepDensityScore-} where
-	 heightScore = 7-y
+	heightScore + wolfFreedomScore {-+ sheepDensityScore-} where
+	 heightScore = (7-y) * 4
 	 sheepDensityScore = evalSheepDensity sheep
-
+	 wolfFreedomScore = length [move | move <- possibleWolfMoves, canWolfMove (State (Wolf x y) sheep) move]
 
 evalSheepDensity :: [Sheep] -> Int
 evalSheepDensity sheep = 
@@ -137,21 +126,4 @@ getExtremeValues ((Sheep x y):rest) (minX,maxX,minY,maxY) =
 	 newMaxX = max x maxX
 	 newMinY = min y minY
 	 newMaxY = max y maxY
-
-
-testState :: State										
-testState = State (Wolf 1 0) [(Sheep 0 0), (Sheep 0 1), (Sheep 0 2), (Sheep 0 3)]
-
-testing :: IO()
-testing = do
- if (canSheepMove testState 0 (Vector 1 0)) then putStrLn "Owca 0 nie powinna móc się ruszyć o 1 0\n" else putStrLn "Success\n"
- if (canSheepMove testState 1 (Vector 1 (-1))) then putStrLn "Owca 1 nie powinna móc się ruszyć o 1 -1\n" else putStrLn "Success\n"
- if (canSheepMove testState 0 (Vector 0 1)) then putStrLn "Owca 0 nie powinna móc się ruszyć o 0 1\n" else putStrLn "Success\n"
- if (canSheepMove testState 0 (Vector 1 1)) then putStrLn "Success\n" else putStrLn "Owca 0 powinna móc się ruszyć o 1 1\n"
- if (canSheepMove testState 0 (Vector (-1) 1)) then putStrLn "Owca 0 nie powinna móc się ruszyć o -1 1\n" else putStrLn "Success\n"
- if (canWolfMove testState (Vector 1 (-1))) then putStrLn "Wilk nie powinien móc się ruszyć o 1 -1\n" else putStrLn "Success\n"
- if (canWolfMove testState (Vector (-1) 1)) then putStrLn "Wilk nie powinien móc się ruszyć o -1 1\n" else putStrLn "Success\n"
- if (canWolfMove testState (Vector 1 1)) then putStrLn "Success\n" else putStrLn "Wilk powinien móc się ruszyć o 1 1\n"
-
-
 
