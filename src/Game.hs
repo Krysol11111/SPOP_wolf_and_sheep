@@ -1,107 +1,152 @@
-module Game (initGame)
+module Game
 where
 
 import System.IO
+import Control.Exception
 import System.Directory
 import Board
 import Data
 import AI
+import Configuration
 
-{-
-Default board setting
--}
-initGame::IO ()
-initGame = game (State (Wolf 3 6) [(Sheep 1 0),(Sheep 3 0),(Sheep 5 0),(Sheep 7 0)])
 
-{-
-Game main loop
--}
-game::State->IO()
-game state = do
-              drawBoard state 0 0
-              printOptions
-              cmd <- getLine
-              executeOption state cmd
-  
-printOptions::IO ()
-printOptions = do 
-                putStrLn "r - ruch owcy"
-                putStrLn "n - nowa gra"
-                putStrLn "k - koniec gry"
-                putStrLn "z - zapis stanu gry do pliku"
-                putStrLn "w - wczytanie stanu gry z pliku"
-                putStrLn "Wybierz operację i zatwierdź Enter"
+-- petla glowna gry
+game::State -> IO()
+game state = do 
+               putStrLn boardStateMsg
+               drawBoard state 0 0
+               processUserInput state
 
-{-
-User options
--}
-executeOption::State->[Char]->IO ()
-executeOption state option = case option of
-    'r':_ -> parseSheepMovement state
-    'n':_ -> initGame
-    'k':_ -> exitGame
-    'z':_ -> writeStateToFile state
-    'w':_ -> loadStateFromFile state
-    _  -> do putStrLn "Wybrano nieporawna opcje"
-             game state
- 
+-- polecenia uzytkownika
+processUserInput :: State -> IO ()
+processUserInput state = do
+                          (operation:rest) <- fmap words getLine
+                          case operation of
+                            '-':'h':_ -> do 
+                                          printHelp
+                                          processUserInput state
+                            '-':'p':_ -> do 
+                                          printInfo [boardStateMsg]
+                                          drawBoard state 0 0
+                                          processUserInput state
+                            '-':'n':_ -> newGame
+                            '-':'e':_ -> exitGame
+                            '-':'s':_ -> if null rest then do 
+                                             printInfo [invalidCommErr]
+                                             processUserInput state
+                                         else saveGame state rest
+                            '-':'l':_ -> if null rest then do 
+                                             printInfo [invalidCommErr]
+                                             processUserInput state 
+                                         else loadGame state rest
+                            '-':'m':_ -> if null rest then do 
+                                             printInfo [invalidCommErr]
+                                             processUserInput state
+                                         else do
+                                            if (length (head rest) == 1) && isNumber (readMaybe (head rest)::Maybe Int) 
+                                            then do parseSheepMovement state rest
+                                            else do 
+                                                  printInfo [invalidCommErr]
+                                                  processUserInput state
+                            _ -> do 
+                                  printInfo [invalidCommErr]
+                                  processUserInput state
+
+-- bezpieczny odczyt stringa
+readMaybe :: Read a => String -> Maybe a
+readMaybe s = case reads s of
+              [(val,"")] -> Just val
+              _ -> Nothing
+
+-- czy string jest intem
+isNumber :: Maybe Int -> Bool
+isNumber Nothing = False
+isNumber (Just x) = True
+
+-- nowa gra
+newGame :: IO ()
+newGame = do 
+           printInfo [gameStartedMsg]
+           printHelp
+           game defaultGame
+
+-- wyjscie z gry
 exitGame::IO()
-exitGame = do
-            putStrLn "Koniec gry"
+exitGame = do 
+            printInfo [exitingGameMsg] 
             return()
 
-parseSheepMovement::State->IO()
-parseSheepMovement state = do
-                            putStrLn "Wybierz index owcy i kierunek (L)ewo lub (P)rawo"
-                            (index:direction) <- fmap words getLine
-                            let sheepId = read index 
-                            if 2 /= (length (index:direction)) 
-                            then do 
-                                  putStrLn "Niepoprawny index"
-                                  game state  
-                            else if (elem sheepId [0..3]) 
-                            then 
-                                case direction of
-                                      "L":_ -> if canSheepMove state sheepId (Vector (-1) 1) 
-                                               then do parseOutcome (wolfMoveState (moveSheep state sheepId (Vector (-1) 1)))
-                                               else do putStrLn "Zajete pole"; game state
-                                      "P":_ -> if canSheepMove state sheepId (Vector 1 1)
-                                               then do parseOutcome (wolfMoveState (moveSheep state sheepId (Vector 1 1))) 
-                                               else do putStrLn "Zajete pole"; game state
-                                      _     -> do putStrLn "Niepoprawny kierunek"
-                                                  game state 
-                            else do 
-                                  putStrLn "Niepoprawna komenda"
-                                  game state
+-- zapis stanu gry 
+saveGame::State -> [String] -> IO ()
+saveGame state (fileName:_) = do 
+                               writeStateToFile state fileName
+                               game state
 
+-- zapis planszy do pliku
+writeStateToFile::State->String->IO ()
+writeStateToFile state fileName = catch (
+                                   do
+                                    handle <- openFile fileName WriteMode
+                                    hPutStrLn handle (toString state)
+                                    hClose handle
+                                    printInfo [gameSavedMsg]
+                                  ) errorHandler
+                                  where 
+                                    errorHandler :: SomeException -> IO ()
+                                    errorHandler e = do printInfo [saveErr]
+
+-- wczytanie stanu gry
+loadGame::State -> [String] -> IO ()
+loadGame state (fileName:_) = do
+                               newState <- loadStateFromFile state fileName
+                               game newState
+
+-- wczytanie planszy z pliku
+loadStateFromFile::State->String->IO State
+loadStateFromFile state fileName = catch (
+                                   do
+                                    fileExists <- doesFileExist fileName
+                                    if fileExists then do
+                                       handle <- openFile fileName ReadMode
+                                       line <- hGetLine handle
+                                       hClose handle 
+                                       printInfo [gameLoadedMsg] 
+                                       return (fromString (words line))                    
+                                    else do
+                                       printInfo [fileNameErr]
+                                       return state
+                                   ) errorHandler
+                                   where 
+                                    errorHandler :: SomeException -> IO State
+                                    errorHandler e = do 
+                                                      printInfo [loadErr]
+                                                      return state
+
+-- sprawdzenie warunku zwyciestwa obu stron
 parseOutcome::(Outcome,State)->IO ()
 parseOutcome (outcome, state) = case outcome of
-                                  SheepWon -> do putStrLn "Sheep won"
-                                  WolfWon -> do putStrLn "Wolf won"
+                                  SheepWon -> do printInfo [congratulationMsg, sheepWonMsg]
+                                  WolfWon -> do printInfo [congratulationMsg, wolfWonMsg]
                                   _ -> do game state
 
-writeStateToFile::State->IO()
-writeStateToFile state = do
-                          putStrLn "Podaj nazwe pliku:"
-                          filePath <- getLine
-                          handle <- openFile filePath WriteMode
-                          hPutStrLn handle (stateToString state)
-                          hClose handle
-                          putStrLn "Zapisano stan gry"
-                          game state
-                          
-
-loadStateFromFile::State->IO()
-loadStateFromFile state = do
-                     putStrLn "Podaj nazwe pliku:"
-                     filePath <- getLine
-                     fileExists <- doesFileExist filePath
-                     if fileExists then do
-                                         handle <- openFile filePath ReadMode
-                                         line <- hGetLine handle
-                                         putStrLn "Wczytano stan gry"; 
-                                         hClose handle            
-                                         game (stringToState (words line))                    
-                     else do
-                           putStrLn "Plik nie istnieje"
-                           game state
+-- sprawdz ruch owcy Indeks kierunek (SE lub SW)	  
+parseSheepMovement::State->[String]->IO ()
+parseSheepMovement state (index:direction:_) = do
+                                              let sheepId = read index
+                                              if elem sheepId [0..3]
+                                              then case direction of 
+                                                 'L':_ -> trySheepMovement state sheepId (Vector (-1) 1)
+                                                 'R':_ -> trySheepMovement state sheepId (Vector 1 1)
+                                                 _ -> do
+                                                      printInfo [sheepDirErr]
+                                                      processUserInput state
+                                              else do 
+                                                      printInfo [sheepIdxErr]
+                                                      processUserInput state
+  
+-- wykonaj ruch owca
+trySheepMovement::State->Int->Vector->IO ()
+trySheepMovement state sheepId vector | canSheepMove state sheepId vector = parseOutcome (wolfMoveState (moveSheep state sheepId vector))
+                                      | otherwise = do
+                                                     printInfo [fieldOccupErr]
+                                                     game state

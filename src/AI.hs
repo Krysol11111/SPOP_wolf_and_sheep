@@ -7,8 +7,8 @@ import Data
 
 possibleX = [0..7] -- wymiar x planszy
 possibleY = [0..7] -- wymiar y planszy
-possibleWolfMoves = [(Vector 1 (-1)), (Vector (-1) (-1)), (Vector 1 1), (Vector (-1) 1)] -- możliwe ruchy wilka
-possibleSheepMoves = [(Vector 1 1), (Vector (-1) 1)] -- możliwe ruchy owcy
+possibleWolfMoves = [(Vector 1 (-1)), (Vector (-1) (-1)), (Vector 1 1), (Vector (-1) 1)] -- możliwe ruchy wilka (SW, NW, SE, NE)
+possibleSheepMoves = [(Vector 1 1), (Vector (-1) 1)] -- możliwe ruchy owcy (SE, SW)
 sheepids = [0..3]
 minmaxDepth = 5 --zmniejszane tylko na ruchach wilka
 winningValue :: Int

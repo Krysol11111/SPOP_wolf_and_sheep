@@ -25,24 +25,24 @@ instance CanGetXY Vector where
  getX (Vector x y) = x
  getY (Vector x y) = y
 
+class StringConversion a where
+ fromString :: [String] -> a
+ toString :: a -> String
 
+instance StringConversion State where
+ fromString (x:y:xs) = (State (fromString [x,y]) (fromStringList xs))
+ toString (State wolf sheeps) = toString wolf ++ concat (toStringList sheeps)
 
-stateToString::State->String
-stateToString (State (Wolf wx wy) ((Sheep sx sy):xs)) = wolfToString (Wolf wx wy) ++ sheepToString ((Sheep sx sy):xs)
+instance StringConversion Wolf where
+ fromString (x:y:_) = Wolf (read x) (read y)
+ toString (Wolf wx wy) = show wx ++ " " ++ show wy
 
-wolfToString::Wolf->String
-wolfToString (Wolf x y) = show x ++ " " ++ show y
-
-sheepToString::[Sheep]->String
-sheepToString [] = []
-sheepToString ((Sheep x y):xs) = " "++ show x ++ " " ++ show y ++ sheepToString (xs)
-
-stringToState::[String]->State
-stringToState (x:y:xs) = State (charToWolf x y) (stringToSheep xs)
-
-charToWolf::String->String->Wolf
-charToWolf x y = Wolf (read x) (read y)
-
-stringToSheep::[String]->[Sheep]
-stringToSheep [] = []
-stringToSheep (x:y:xs) = (Sheep (read x) (read y)) : stringToSheep (xs)
+class StringListConversion a where
+ fromStringList :: [String] -> [a]
+ toStringList :: [a] -> [String]
+ 
+instance StringListConversion Sheep where
+ fromStringList [] = []
+ fromStringList (x:y:xs) = (Sheep (read x) (read y)) : fromStringList (xs)
+ toStringList [] = []
+ toStringList ((Sheep x y):xs) = (" " ++ show x ++ " " ++ show y) : toStringList xs
